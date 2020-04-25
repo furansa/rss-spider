@@ -1,6 +1,7 @@
 # RSS Spider
 A very simple RSS spider for late reading. Can be used for terminal reading
-or integrated with tools like conky.
+or integrated with tools like
+[conky monitor](https://github.com/brndnmtthws/conky){:target="_blank"}.
 
 ## History:
 
