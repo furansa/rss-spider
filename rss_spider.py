@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime
 from urllib import error, request
 from xml.etree.ElementTree import parse
 
@@ -24,26 +25,45 @@ def fetch_parse_feeds(source: str, destination: str, limit: int) -> None:
     Fetch RSS feed source and parse the content into destination according to
     the given limit of days.
     """
+    document = destination + "/news.md"
     request_headers = {"User-Agent": "Mozilla/5.0"}
+    timestamp = datetime.now()
 
+    # Read the RSS feed sources
     with open(source, "r") as file:
         rss_sources = json.load(file)
 
-    for title, url in rss_sources.items():
-        print("Accessing " + title)
+    # Open the destination document only once and process each source
+    f_document = open(document, "w")
+    f_document.write("# News\nLast update: " + str(timestamp) + ".\n")
 
+    for name, url in rss_sources.items():
+        f_document.write("## " + name + "\n")
         rss_request = request.Request(url, headers=request_headers)
 
         try:
             with request.urlopen(rss_request) as response:
-                rss_doc = parse(response)
+                rss_response = parse(response)
 
-                for item in rss_doc.iterfind("channel/item"):
-                    print("Title: " + item.findtext("title"))
-                    print("Link: " + item.findtext("link") + "\n")
+                # Write each response from that source to the document
+                # Parse response based on http://www.w3.org/2005/Atom
+                atom_prefix = "{http://www.w3.org/2005/Atom}"
+                for item in rss_response.iterfind(atom_prefix + "entry"):
+                    f_document.write("* [" + item.findtext(atom_prefix +
+                                     "title") + "](" +
+                                     item.find(atom_prefix +
+                                     "link").attrib["href"] + ")\n")
+
+                # TODO: Parse response based on http://purl.org/dc/elements/1.1/
+                # for item in rss_response.iterfind("channel/item"):
+                #     f_document.write("* [" + item.findtext("title") + "](" +
+                #                      item.findtext("link") + ")\n")
 
         except error.URLError as e:
             print(e.reason)
+
+    # Close the document
+    f_document.close()
 
 
 def read_robots() -> None:
