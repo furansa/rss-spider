@@ -13,7 +13,9 @@ def create_default_source(filename: str) -> None:
     Create RSS feed source examples into given file.
     """
     feeds = {
-        "Planet Python": "https://planetpython.org/rss20.xml"
+        "Planet Python": "https://planetpython.org/rss20.xml",
+        "Real Python": "https://realpython.com/atom.xml",
+        "Schneier on Security": "https://www.schneier.com/blog/atom.xml"
     }
 
     with open(filename, "w") as file:
