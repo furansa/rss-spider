@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import datetime
 from urllib import error, request
+from typing import List
 from xml.etree.ElementTree import parse
 
 
@@ -22,50 +23,58 @@ def create_default_source(filename: str) -> None:
         json.dump(feeds, file)
 
 
-def fetch_parse_feeds(source: str, destination: str, limit: int) -> None:
+def fetch_feeds(source: str, destination: str, limit: int) -> None:
     """
-    Fetch RSS feed source and parse the content into destination according to
-    the given limit of days.
+    Fetch RSS feed source according to the given limit of days.
     """
-    document = destination + "/news.md"
     request_headers = {"User-Agent": "Mozilla/5.0"}
-    timestamp = datetime.now()
+    rss_data = list()
 
     # Read the RSS feed sources
     with open(source, "r") as file:
         rss_sources = json.load(file)
 
-    # Open the destination document only once and process each source
-    f_document = open(document, "w")
-    f_document.write("# News\nLast update: " + str(timestamp) + ".\n")
-
+    # For each RSS source
     for name, url in rss_sources.items():
-        f_document.write("## " + name + "\n")
         rss_request = request.Request(url, headers=request_headers)
 
         try:
             with request.urlopen(rss_request) as response:
+                # Parse response and append to a list with RSS feed name
                 rss_response = parse(response)
-
-                # Write each response from that source to the document
-                # Parse response based on http://www.w3.org/2005/Atom
-                atom_prefix = "{http://www.w3.org/2005/Atom}"
-                for item in rss_response.iterfind(atom_prefix + "entry"):
-                    f_document.write("* [" + item.findtext(atom_prefix +
-                                     "title") + "](" +
-                                     item.find(atom_prefix +
-                                     "link").attrib["href"] + ")\n")
-
-                # TODO: Parse response based on http://purl.org/dc/elements/1.1/
-                # for item in rss_response.iterfind("channel/item"):
-                #     f_document.write("* [" + item.findtext("title") + "](" +
-                #                      item.findtext("link") + ")\n")
+                rss_data.append((name, rss_response))
 
         except error.URLError as e:
             print(e.reason)
 
-    # Close the document
-    f_document.close()
+    # Send data to be formated, structured and saved
+    filename = destination + "/news.md"
+    format_data(rss_data, filename)
+
+
+def format_data(rss_data: List, filename: str) -> None:
+    """
+    Format and structure data into final document.
+    """
+    timestamp = datetime.now()
+
+    with open(filename, "w") as file:
+        file.write("# News\nLast update: " + str(timestamp) + ".\n")
+
+        for name, data in rss_data:
+            file.write("## " + name + "\n")
+            # Format and write data based on http://www.w3.org/2005/Atom
+            atom_prefix = "{http://www.w3.org/2005/Atom}"
+            for item in data.iterfind(atom_prefix + "entry"):
+                file.write("* [" + item.findtext(atom_prefix +
+                           "title") + "](" +
+                           item.find(atom_prefix +
+                           "link").attrib["href"] + ")\n")
+
+            # TODO: Format data and write based on http://purl.org/dc/elements/1.1/
+            # for item in data.iterfind("channel/item"):
+            #     file.write("* [" + item.findtext("title") + "](" +
+            #                item.findtext("link") + ")\n")
 
 
 def read_robots() -> None:
@@ -119,6 +128,6 @@ if __name__ == "__main__":
 
     # Fetch and parse from RSS feed sources based on the given limit of days
     # and save to destination directory
-    fetch_parse_feeds(args.source, args.destination, args.limit)
+    fetch_feeds(args.source, args.destination, args.limit)
 
     sys.exit()
