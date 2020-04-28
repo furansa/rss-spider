@@ -13,6 +13,12 @@ from xml.etree.ElementTree import parse
 def create_default_source(filename: str) -> None:
     """
     Create RSS feed source examples into given file.
+
+    :param filename: Name of the source file
+    :type filename: str
+
+    :return: None
+    :rtype: None
     """
     feeds = {
         "Planet Python": "https://planetpython.org/rss20.xml",
@@ -24,13 +30,22 @@ def create_default_source(filename: str) -> None:
         json.dump(feeds, file)
 
 
-def fetch_feeds(source: str, destination: str, limit: int) -> None:
+# TODO: Implement limit logic
+def fetch_feeds(source: str, limit: int) -> List:
     """
     Fetch RSS feed source according to the given limit of days.
-    TODO: Create limit logic.
+
+    :param source: Name of the source file
+    :type source: str
+
+    :param limit: Limit of days to fetch
+    :type limit: int
+
+    :return: RSS feed names and content
+    :rtype: List
     """
     request_headers = {"User-Agent": "Mozilla/5.0"}
-    request_timeout = 5
+    request_timeout = 10
     rss_data = list()
 
     # Read the RSS feed sources
@@ -50,15 +65,22 @@ def fetch_feeds(source: str, destination: str, limit: int) -> None:
         except URLError as e:
             print(e.reason)
 
-    # Send data to be formated, structured and saved
-    filename = destination + "/news.md"
-    format_data(rss_data, filename)
+    return rss_data
 
 
+# TODO: Sort by category
 def format_data(rss_data: List, filename: str) -> None:
     """
     Format and structure data into final document.
-    TODO: Sort by category.
+
+    :param rss_data: RSS feed name and content
+    :type rss_data: List
+
+    :param filename: Name of the destination file
+    :type filename: str
+
+    :return: None
+    :rtype: None
     """
     timestamp = datetime.now()
 
@@ -82,6 +104,7 @@ def format_data(rss_data: List, filename: str) -> None:
                            item.findtext("link") + ")\n")
 
 
+# TODO
 def read_robots() -> None:
     """
     Read from RSS feed robots.txt
@@ -132,7 +155,10 @@ if __name__ == "__main__":
         os.mkdir(args.destination)
 
     # Fetch and parse from RSS feed sources based on the given limit of days
-    # and save to destination directory
-    fetch_feeds(args.source, args.destination, args.limit)
+    rss_data = fetch_feeds(args.source, args.limit)
+
+    # Format and save RSS data
+    filename = args.destination + "/news.md"
+    format_data(rss_data, filename)
 
     sys.exit()
