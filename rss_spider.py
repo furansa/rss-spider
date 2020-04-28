@@ -4,8 +4,9 @@ import json
 import os
 import sys
 from datetime import datetime
-from urllib import error, request
 from typing import List
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 from xml.etree.ElementTree import parse
 
 
@@ -26,8 +27,10 @@ def create_default_source(filename: str) -> None:
 def fetch_feeds(source: str, destination: str, limit: int) -> None:
     """
     Fetch RSS feed source according to the given limit of days.
+    TODO: Create limit logic.
     """
     request_headers = {"User-Agent": "Mozilla/5.0"}
+    request_timeout = 5
     rss_data = list()
 
     # Read the RSS feed sources
@@ -36,15 +39,15 @@ def fetch_feeds(source: str, destination: str, limit: int) -> None:
 
     # For each RSS source
     for name, url in rss_sources.items():
-        rss_request = request.Request(url, headers=request_headers)
+        rss_request = Request(url, headers=request_headers)
 
         try:
-            with request.urlopen(rss_request) as response:
+            with urlopen(rss_request, timeout=request_timeout) as response:
                 # Parse response and append to a list with RSS feed name
                 rss_response = parse(response)
                 rss_data.append((name, rss_response))
 
-        except error.URLError as e:
+        except URLError as e:
             print(e.reason)
 
     # Send data to be formated, structured and saved
@@ -55,6 +58,7 @@ def fetch_feeds(source: str, destination: str, limit: int) -> None:
 def format_data(rss_data: List, filename: str) -> None:
     """
     Format and structure data into final document.
+    TODO: Sort by category.
     """
     timestamp = datetime.now()
 
@@ -62,7 +66,8 @@ def format_data(rss_data: List, filename: str) -> None:
         file.write("# News\nLast update: " + str(timestamp) + ".\n")
 
         for name, data in rss_data:
-            file.write("## " + name + "\n")
+            file.write("\n## " + name + "\n")
+            # TODO: Optimize it
             # Format and write data based on http://www.w3.org/2005/Atom
             atom_prefix = "{http://www.w3.org/2005/Atom}"
             for item in data.iterfind(atom_prefix + "entry"):
@@ -71,10 +76,10 @@ def format_data(rss_data: List, filename: str) -> None:
                            item.find(atom_prefix +
                            "link").attrib["href"] + ")\n")
 
-            # TODO: Format data and write based on http://purl.org/dc/elements/1.1/
-            # for item in data.iterfind("channel/item"):
-            #     file.write("* [" + item.findtext("title") + "](" +
-            #                item.findtext("link") + ")\n")
+            # Format data and write based on http://purl.org/dc/elements/1.1/
+            for item in data.iterfind("channel/item"):
+                file.write("* [" + item.findtext("title") + "](" +
+                           item.findtext("link") + ")\n")
 
 
 def read_robots() -> None:
