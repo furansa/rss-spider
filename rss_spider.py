@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import socket
 import sys
 from datetime import datetime
 from typing import List
@@ -10,9 +11,24 @@ from urllib.request import Request, urlopen
 from xml.etree.ElementTree import parse
 
 
+def do_log(message: str) -> None:
+    """
+    Simple log streaming to stdout
+
+    :param message: Message to be logged
+    :type message: str
+
+    :return: None
+    :rtype: None
+    """
+    timestamp = datetime.now()
+
+    print("{}: {}".format(timestamp, message))
+
+
 def create_default_source(filename: str) -> None:
     """
-    Create RSS feed source examples into given file.
+    Create RSS feed source examples into given file
 
     :param filename: Name of the source file
     :type filename: str
@@ -30,16 +46,18 @@ def create_default_source(filename: str) -> None:
         json.dump(feeds, file)
 
 
-# TODO: Implement limit logic
-def fetch_feeds(source: str, limit: int) -> List:
+def fetch_feeds(source: str, limit: int, verbose: bool = False) -> List:
     """
-    Fetch RSS feed source according to the given limit of days.
+    Fetch RSS feed source according to the given limit of days
 
     :param source: Name of the source file
     :type source: str
 
     :param limit: Limit of days to fetch
     :type limit: int
+
+    :param verbose: Enable verbose mode to output log
+    :type verbose: bool
 
     :return: RSS feed names and content
     :rtype: List
@@ -59,19 +77,26 @@ def fetch_feeds(source: str, limit: int) -> List:
         try:
             with urlopen(rss_request, timeout=request_timeout) as response:
                 # Parse response and append to a list with RSS feed name
+                if verbose:
+                    do_log("fetch_feeds() accessing {}".format(url))
                 rss_response = parse(response)
                 rss_data.append((name, rss_response))
 
         except URLError as e:
-            print(e.reason)
+            if verbose:
+                do_log(e.reason)
+            continue
+        except socket.timeout:
+            if verbose:
+                do_log("socket.timeout")
+            continue
 
     return rss_data
 
 
-# TODO: Sort by category
 def format_data(rss_data: List, filename: str) -> None:
     """
-    Format and structure data into final document.
+    Format and structure data into final document
 
     :param rss_data: RSS feed name and content
     :type rss_data: List
@@ -89,22 +114,24 @@ def format_data(rss_data: List, filename: str) -> None:
 
         for name, data in rss_data:
             file.write("\n## " + name + "\n")
-            # TODO: Optimize it
             # Format and write data based on http://www.w3.org/2005/Atom
             atom_prefix = "{http://www.w3.org/2005/Atom}"
+            atom_title = atom_prefix + "title"
+            atom_link = atom_prefix + "link"
+
             for item in data.iterfind(atom_prefix + "entry"):
-                file.write("* [" + item.findtext(atom_prefix +
-                           "title") + "](" +
-                           item.find(atom_prefix +
-                           "link").attrib["href"] + ")\n")
+                file.write("* [" + item.findtext(atom_title) +
+                           "](" + item.find(atom_link).attrib["href"] + ")\n")
 
             # Format data and write based on http://purl.org/dc/elements/1.1/
             for item in data.iterfind("channel/item"):
-                file.write("* [" + item.findtext("title") + "](" +
-                           item.findtext("link") + ")\n")
+                # Avoid crash due to NoneType if empty
+                if isinstance(item.findtext("title"), str) and \
+                   isinstance(item.findtext("link"), str):
+                    file.write("* [" + item.findtext("title") + "](" +
+                               item.findtext("link") + ")\n")
 
 
-# TODO
 def read_robots() -> None:
     """
     Read from RSS feed robots.txt
@@ -135,6 +162,10 @@ if __name__ == "__main__":
                             help="Limit the number of days to download. \
                             Default 1 (today)")
 
+    arg_parser.add_argument("-v", "--verbose", required=False,
+                            action="store_true",
+                            help="Enable output log information.")
+
     args = arg_parser.parse_args()
 
     # Create an empty RSS feed source if the informed one does not exits
@@ -155,7 +186,10 @@ if __name__ == "__main__":
         os.mkdir(args.destination)
 
     # Fetch and parse from RSS feed sources based on the given limit of days
-    rss_data = fetch_feeds(args.source, args.limit)
+    if args.verbose:
+        rss_data = fetch_feeds(args.source, args.limit, verbose=True)
+    else:
+        rss_data = fetch_feeds(args.source, args.limit)
 
     # Format and save RSS data
     filename = args.destination + "/news.md"
