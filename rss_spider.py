@@ -11,9 +11,12 @@ from urllib.request import Request, urlopen
 from xml.etree.ElementTree import parse
 
 
-def do_log(message: str) -> None:
+def do_log(timestamp: datetime, message: str) -> None:
     """
     Simple log streaming to stdout
+
+    :param timestamp: Message timestamp
+    :type timestamp: datetime
 
     :param message: Message to be logged
     :type message: str
@@ -21,15 +24,18 @@ def do_log(message: str) -> None:
     :return: None
     :rtype: None
     """
-    # Check the argument type
+    # Check for the arguments type
+    if not isinstance(timestamp, datetime):
+        raise TypeError("Argument 'timestamp' must be of type datetime")
+
     if not isinstance(message, str):
         raise TypeError("Argument 'message' must be of type string")
 
-    # Check for empty string
+    # Check for empty string in message argument
     if len(message) < 1 or None:
         raise TypeError("Argument 'message' cannot be empty")
 
-    log_message = "{}".format(message)
+    log_message = "{}: {}".format(timestamp, message)
 
     print(log_message)
 
@@ -86,9 +92,8 @@ def fetch_feeds(source: str, limit: int, verbose: bool = False) -> List:
             with urlopen(rss_request, timeout=request_timeout) as response:
                 # Parse response and append to a list with RSS feed name
                 if verbose:
-                    do_log("{}: fetch_feeds() accessing {}".format(
-                                                                datetime.now(),
-                                                                url))
+                    do_log(datetime.now(),
+                           "fetch_feeds() accessing {}".format(url))
                 rss_response = parse(response)
                 rss_data.append((name, rss_response))
 
@@ -98,7 +103,7 @@ def fetch_feeds(source: str, limit: int, verbose: bool = False) -> List:
             continue
         except socket.timeout:
             if verbose:
-                do_log("{}: socket.timeout".format(datetime.now()))
+                do_log(datetime.now(), "socket.timeout")
             continue
 
     return rss_data
