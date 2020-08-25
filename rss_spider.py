@@ -21,9 +21,17 @@ def do_log(message: str) -> None:
     :return: None
     :rtype: None
     """
-    timestamp = datetime.now()
+    # Check the argument type
+    if not isinstance(message, str):
+        raise TypeError("Argument 'message' must be of type string")
 
-    print("{}: {}".format(timestamp, message))
+    # Check for empty string
+    if len(message) < 1 or None:
+        raise TypeError("Argument 'message' cannot be empty")
+
+    log_message = "{}".format(message)
+
+    print(log_message)
 
 
 def create_default_source(filename: str) -> None:
@@ -78,17 +86,19 @@ def fetch_feeds(source: str, limit: int, verbose: bool = False) -> List:
             with urlopen(rss_request, timeout=request_timeout) as response:
                 # Parse response and append to a list with RSS feed name
                 if verbose:
-                    do_log("fetch_feeds() accessing {}".format(url))
+                    do_log("{}: fetch_feeds() accessing {}".format(
+                                                                datetime.now(),
+                                                                url))
                 rss_response = parse(response)
                 rss_data.append((name, rss_response))
 
         except URLError as e:
             if verbose:
-                do_log(e.reason)
+                do_log("{}: {}".format(datetime.now(), e.reason))
             continue
         except socket.timeout:
             if verbose:
-                do_log("socket.timeout")
+                do_log("{}: socket.timeout".format(datetime.now()))
             continue
 
     return rss_data
